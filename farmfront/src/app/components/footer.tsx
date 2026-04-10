@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className="bg-[#0a2e22] text-white/80">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand */}
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
@@ -39,6 +39,15 @@ export function Footer() {
               <li><Link to="/pesquisa" className="hover:text-primary transition-colors">Pesquisar Medicamentos</Link></li>
               <li><Link to="/consultas" className="hover:text-primary transition-colors">Consultas Médicas</Link></li>
               <li><Link to="/registar" className="hover:text-primary transition-colors">Criar Conta</Link></li>
+            </ul>
+          </div>
+
+          {/* Pharmacy Portal */}
+          <div>
+            <h4 className="text-white text-sm mb-4" style={{ fontWeight: 600 }}>Para Farmácias</h4>
+            <ul className="space-y-2.5 text-sm">
+              <li><Link to="/farmacia/entrar" className="hover:text-primary transition-colors">Login Farmácia</Link></li>
+              <li><Link to="/farmacia/registar" className="hover:text-primary transition-colors">Registar Farmácia</Link></li>
             </ul>
           </div>
 

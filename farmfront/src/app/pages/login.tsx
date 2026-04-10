@@ -153,6 +153,13 @@ export function LoginPage() {
             <p>Conta demo cliente:</p>
             <p><strong>joao.cliente@email.co.mz</strong> / <strong>password123</strong></p>
           </div>
+
+          <div className="mt-4 pt-4 border-t border-border text-center">
+            <p className="text-xs text-muted-foreground mb-1">É farmacêutico?</p>
+            <Link to="/farmacia/entrar" className="text-sm text-primary hover:underline font-medium">
+              Aceder ao Portal de Farmácias
+            </Link>
+          </div>
         </Card>
       </div>
     </div>

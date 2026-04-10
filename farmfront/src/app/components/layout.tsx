@@ -102,6 +102,7 @@ export function Layout() {
           </div>
           <div className="flex items-center gap-4">
             <span>Suporte: +258 84 000 0000</span>
+            <Link to="/farmacia/entrar" className="hover:underline opacity-80">Portal Farmácias</Link>
             {isAuthenticated ? (
               <Link to="/perfil" className="hover:underline">{user?.full_name || "Minha Conta"}</Link>
             ) : (
