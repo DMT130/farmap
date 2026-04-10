@@ -79,6 +79,24 @@ class PharmacyCreate(PharmacyBase):
     pass
 
 
+class PharmacyRegister(BaseModel):
+    """Standalone pharmacy registration — creates both a user account and pharmacy."""
+    # Account credentials
+    email: str
+    password: str
+    owner_name: str
+    owner_phone: Optional[str] = None
+    # Pharmacy details
+    pharmacy_name: str
+    address: str
+    district: str
+    phone: Optional[str] = None
+    open_hours: Optional[str] = None
+    delivery_fee: float = 0.0
+    delivery_time: Optional[str] = None
+    is_open: bool = False
+
+
 class PharmacyUpdate(BaseModel):
     name: Optional[str] = None
     is_open: Optional[bool] = None
@@ -297,3 +315,150 @@ class AppointmentResponse(BaseModel):
     status: str
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+# ===========================================================================
+# Supplier (desktop POS)
+# ===========================================================================
+
+class SupplierBase(BaseModel):
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+
+class SupplierResponse(SupplierBase):
+    id: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ===========================================================================
+# Stock / Inventory (desktop POS)
+# ===========================================================================
+
+class StockBatchCreate(BaseModel):
+    pharmacy_id: str
+    medicine_id: str
+    supplier_id: Optional[str] = None
+    batch_number: Optional[str] = None
+    quantity_received: int
+    cost_price: float
+    sale_price: float
+    expiry_date: Optional[str] = None
+
+
+class StockBatchUpdate(BaseModel):
+    quantity_remaining: Optional[int] = None
+    sale_price: Optional[float] = None
+    expiry_date: Optional[str] = None
+
+
+class StockBatchResponse(BaseModel):
+    id: str
+    pharmacy_id: str
+    medicine_id: str
+    supplier_id: Optional[str] = None
+    batch_number: Optional[str] = None
+    quantity_received: int
+    quantity_remaining: int
+    cost_price: float
+    sale_price: float
+    expiry_date: Optional[str] = None
+    received_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InventorySummary(BaseModel):
+    """Aggregated inventory view per medicine in a pharmacy."""
+    medicine_id: str
+    medicine_name: str
+    category: Optional[str] = None
+    total_stock: int
+    batches: int
+    avg_cost: float
+    sale_price: float
+    nearest_expiry: Optional[str] = None
+
+
+# ===========================================================================
+# POS Sale (desktop POS)
+# ===========================================================================
+
+class SaleItemCreate(BaseModel):
+    medicine_id: str
+    batch_id: Optional[str] = None
+    quantity: int
+    unit_price: float
+
+
+class SaleItemResponse(BaseModel):
+    id: str
+    medicine_id: str
+    batch_id: Optional[str] = None
+    quantity: int
+    unit_price: float
+    total: float
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SaleCreate(BaseModel):
+    pharmacy_id: str
+    customer_name: Optional[str] = None
+    items: List[SaleItemCreate]
+    discount: float = 0.0
+    payment_method: str = "cash"
+    notes: Optional[str] = None
+
+
+class SaleResponse(BaseModel):
+    id: str
+    pharmacy_id: str
+    cashier_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    subtotal: float
+    discount: float
+    total: float
+    payment_method: str
+    status: str
+    notes: Optional[str] = None
+    created_at: datetime
+    items: List[SaleItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SaleVoid(BaseModel):
+    reason: Optional[str] = None
+
+
+# ===========================================================================
+# Reports
+# ===========================================================================
+
+class DailySalesReport(BaseModel):
+    date: str
+    total_sales: float
+    transaction_count: int
+    items_sold: int
+    top_medicines: List[dict] = []
+
+
+class InventoryAlert(BaseModel):
+    medicine_id: str
+    medicine_name: str
+    quantity_remaining: int
+    alert_type: str  # low_stock | expiring_soon | expired

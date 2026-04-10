@@ -1,10 +1,31 @@
 
   <!DOCTYPE html>
-  <html lang="en">
+  <html lang="pt-MZ">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Untitled</title>
+      <meta name="description" content="FarmaMap — Encontre medicamentos perto de si ao melhor preço. Compare preços, verifique disponibilidade e encomende de farmácias locais em Moçambique." />
+      <meta name="theme-color" content="#0d9668" />
+      <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>" />
+      <title>FarmaMap — Marketplace Farmacêutico</title>
+      <style>
+        /* Prevent FOUC: hide content until CSS loads */
+        html { background: #ffffff; }
+        html.dark { background: #09090b; }
+        #root { opacity: 0; transition: opacity 0.15s ease-in; }
+        #root.ready { opacity: 1; }
+      </style>
+      <script>
+        // Apply dark mode instantly before paint to prevent flash
+        (function() {
+          try {
+            var theme = localStorage.getItem('farmamap_theme');
+            if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+              document.documentElement.classList.add('dark');
+            }
+          } catch(e) {}
+        })();
+      </script>
     </head>
 
     <body>

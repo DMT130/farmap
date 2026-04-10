@@ -5,7 +5,7 @@
  * Switch BASE_URL to your production domain when deploying.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001";
 
 // ---------------------------------------------------------------------------
 // Generic fetch helper
@@ -13,7 +13,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retries = 1
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const headers: Record<string, string> = {
@@ -27,14 +28,29 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...options, headers });
+  try {
+    const res = await fetch(url, { ...options, headers });
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `API error ${res.status}`);
+    // Auto-logout on 401
+    if (res.status === 401) {
+      localStorage.removeItem("farmamap_token");
+      localStorage.removeItem("farmamap_user");
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `API error ${res.status}`);
+    }
+
+    return res.json();
+  } catch (err) {
+    // Retry on network errors (not on API errors)
+    if (retries > 0 && err instanceof TypeError) {
+      await new Promise((r) => setTimeout(r, 500));
+      return request<T>(path, options, retries - 1);
+    }
+    throw err;
   }
-
-  return res.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +184,21 @@ export const authApi = {
     role?: string;
     pharmacy_id?: string;
   }) => request<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+
+  registerPharmacy: (data: {
+    email: string;
+    password: string;
+    owner_name: string;
+    owner_phone?: string;
+    pharmacy_name: string;
+    address: string;
+    district: string;
+    phone?: string;
+    open_hours?: string;
+    delivery_fee?: number;
+    delivery_time?: string;
+    is_open?: boolean;
+  }) => request<TokenResponse>("/auth/register-pharmacy", { method: "POST", body: JSON.stringify(data) }),
 
   login: (email: string, password: string) =>
     request<TokenResponse>("/auth/login", {
@@ -334,6 +365,97 @@ export const adminApi = {
   /** Update any user's role / pharmacy_id */
   updateUser: (userId: string, data: { role?: string; pharmacy_id?: string | null; full_name?: string }) =>
     request<User>(`/auth/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) }),
+};
+
+// ---------------------------------------------------------------------------
+// Inventory / Stock Management
+// ---------------------------------------------------------------------------
+
+export interface StockBatch {
+  id: string;
+  pharmacy_id: string;
+  medicine_id: string;
+  supplier_id: string | null;
+  batch_number: string | null;
+  quantity_received: number;
+  quantity_remaining: number;
+  cost_price: number;
+  sale_price: number;
+  expiry_date: string | null;
+  received_at: string;
+}
+
+export interface InventorySummary {
+  medicine_id: string;
+  medicine_name: string;
+  category: string | null;
+  total_stock: number;
+  batches: number;
+  avg_cost: number;
+  sale_price: number;
+  nearest_expiry: string | null;
+}
+
+export interface InventoryAlert {
+  medicine_id: string;
+  medicine_name: string;
+  quantity_remaining: number;
+  alert_type: string; // low_stock | expiring_soon | expired
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  created_at: string;
+}
+
+export const inventoryApi = {
+  // Stock batches
+  receiveBatch: (data: {
+    pharmacy_id: string;
+    medicine_id: string;
+    supplier_id?: string | null;
+    batch_number?: string | null;
+    quantity_received: number;
+    cost_price: number;
+    sale_price: number;
+    expiry_date?: string | null;
+  }) => request<StockBatch>("/inventory/batches", { method: "POST", body: JSON.stringify(data) }),
+
+  listBatches: (pharmacyId: string, medicineId?: string) => {
+    const params = new URLSearchParams({ pharmacy_id: pharmacyId });
+    if (medicineId) params.set("medicine_id", medicineId);
+    return request<StockBatch[]>(`/inventory/batches?${params}`);
+  },
+
+  getBatch: (batchId: string) => request<StockBatch>(`/inventory/batches/${batchId}`),
+
+  updateBatch: (batchId: string, data: { quantity_remaining?: number; sale_price?: number; expiry_date?: string }) =>
+    request<StockBatch>(`/inventory/batches/${batchId}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  // Summary & alerts
+  summary: (pharmacyId: string) =>
+    request<InventorySummary[]>(`/inventory/summary?pharmacy_id=${pharmacyId}`),
+
+  alerts: (pharmacyId: string, threshold?: number) => {
+    const params = new URLSearchParams({ pharmacy_id: pharmacyId });
+    if (threshold !== undefined) params.set("low_stock_threshold", String(threshold));
+    return request<InventoryAlert[]>(`/inventory/alerts?${params}`);
+  },
+};
+
+export const suppliersApi = {
+  list: () => request<Supplier[]>("/suppliers/"),
+  create: (data: { name: string; contact_person?: string; phone?: string; email?: string; address?: string }) =>
+    request<Supplier>("/suppliers/", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Supplier>) =>
+    request<Supplier>(`/suppliers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<void>(`/suppliers/${id}`, { method: "DELETE" }),
 };
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,8 @@ import { toast } from "sonner";
 export function ProfilePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, updateProfile } = useAuth();
+  const isCustomer = user?.role === "customer";
+  const isPharmacyOwner = user?.role === "pharmacy_owner";
   const [activeInsurer, setActiveInsurer] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -196,21 +198,30 @@ export function ProfilePage() {
 
         {/* Main content */}
         <div className="lg:col-span-3">
-          <Tabs defaultValue="orders" className="w-full">
-            <TabsList className="w-full justify-start mb-6 bg-card border border-border rounded-xl p-1 overflow-x-auto">
-              <TabsTrigger value="orders" className="rounded-lg">
-                <Package className="w-4 h-4 mr-1.5" /> Pedidos
-              </TabsTrigger>
-              <TabsTrigger value="appointments" className="rounded-lg">
-                <Clock className="w-4 h-4 mr-1.5" /> Consultas
-              </TabsTrigger>
-              <TabsTrigger value="insurance" className="rounded-lg">
-                <Shield className="w-4 h-4 mr-1.5" /> Seguro
-              </TabsTrigger>
-              <TabsTrigger value="payments" className="rounded-lg">
-                <CreditCard className="w-4 h-4 mr-1.5" /> Pagamentos
-              </TabsTrigger>
-            </TabsList>
+          {isPharmacyOwner ? (
+            <Card className="p-8 text-center">
+              <h2 className="text-xl mb-3">Painel do Proprietário de Farmácia</h2>
+              <p className="text-muted-foreground mb-6">
+                Como proprietário de farmácia, utilize o painel para gerir o seu stock, preços de medicamentos e pedidos.
+              </p>
+              <Button onClick={() => window.location.assign("/painel")}>Ir para Painel</Button>
+            </Card>
+          ) : (
+            <Tabs defaultValue="orders" className="w-full">
+              <TabsList className="w-full justify-start mb-6 bg-card border border-border rounded-xl p-1 overflow-x-auto">
+                <TabsTrigger value="orders" className="rounded-lg">
+                  <Package className="w-4 h-4 mr-1.5" /> Pedidos
+                </TabsTrigger>
+                <TabsTrigger value="appointments" className="rounded-lg">
+                  <Clock className="w-4 h-4 mr-1.5" /> Consultas
+                </TabsTrigger>
+                <TabsTrigger value="insurance" className="rounded-lg">
+                  <Shield className="w-4 h-4 mr-1.5" /> Seguro
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="rounded-lg">
+                  <CreditCard className="w-4 h-4 mr-1.5" /> Pagamentos
+                </TabsTrigger>
+              </TabsList>
 
             {/* ORDERS TAB */}
             <TabsContent value="orders">
@@ -404,6 +415,7 @@ export function ProfilePage() {
               </div>
             </TabsContent>
           </Tabs>
+          )}
         </div>
       </div>
     </div>

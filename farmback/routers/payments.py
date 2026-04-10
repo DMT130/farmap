@@ -9,6 +9,7 @@ import uuid
 import crud, schemas
 from database import get_db
 from deps import get_current_user
+from settings import settings
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -23,10 +24,19 @@ def process_payment(payment: schemas.PaymentCreate, current_user=Depends(get_cur
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    if payment.provider not in settings.ALLOWED_PAYMENT_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported payment provider: {payment.provider}. Allowed: {', '.join(settings.ALLOWED_PAYMENT_PROVIDERS)}",
+        )
+
     # Check for duplicate payment
     existing = crud.get_payment_by_order(db, payment.order_id)
     if existing:
         raise HTTPException(status_code=400, detail="Order already paid")
+
+    if payment.amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid payment amount")
 
     payment_record = crud.create_payment(db, payment)
     crud.update_order_status(db, payment.order_id, "paid")

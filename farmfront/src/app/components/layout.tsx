@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   ShoppingCart,
@@ -8,29 +8,55 @@ import {
   Menu,
   X,
   Home,
-  LayoutDashboard,
   Pill,
   Clock,
   CalendarCheck,
   ChevronDown,
   LogIn,
   LogOut,
-  Building2,
   Shield,
+  ArrowUp,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { useCart } from "../context/cart-context";
 import { useAuth } from "../context/use-auth";
+import { Footer } from "./footer";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    // index.html already applies the 'dark' class before paint
+    return document.documentElement.classList.contains("dark");
+  });
   const { items } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const toggleDark = () => {
+    const newDark = !isDark;
+    document.documentElement.classList.toggle("dark");
+    localStorage.setItem("farmamap_theme", newDark ? "dark" : "light");
+    setIsDark(newDark);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,12 +72,17 @@ export function Layout() {
   const navLinks = [
     { to: "/", label: "Início", icon: Home },
     { to: "/pesquisa", label: "Medicamentos", icon: Pill },
-    { to: "/consultas", label: "Consultas", icon: CalendarCheck },
-    ...(isAdmin
-      ? [{ to: "/admin", label: "Administração", icon: Shield }]
-      : isPharmacyOwner
-        ? [{ to: "/painel", label: "Painel Farmácia", icon: LayoutDashboard }]
-        : [{ to: "/registar-farmacia", label: "Registar Farmácia", icon: Building2 }]),
+    ...(user && user.role === "customer"
+      ? [
+          { to: "/carrinho", label: "Carrinho", icon: ShoppingCart },
+          { to: "/consultas", label: "Consultas", icon: CalendarCheck },
+        ]
+      : []),
+    ...(
+      isAdmin
+        ? [{ to: "/admin", label: "Administração", icon: Shield }]
+        : []
+    ),
   ];
 
   return (
@@ -121,17 +152,26 @@ export function Layout() {
 
             {/* Right actions */}
             <div className="flex items-center gap-2">
-              <Link to="/carrinho" className="relative p-2 hover:bg-accent rounded-full transition-colors">
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
-                    {cartCount}
-                  </Badge>
-                )}
-              </Link>
+              {!isPharmacyOwner && !isAdmin && (
+                <Link to="/carrinho" className="relative p-2 hover:bg-accent rounded-full transition-colors">
+                  <ShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Link>
+              )}
               <Link to="/perfil" className="p-2 hover:bg-accent rounded-full transition-colors hidden sm:flex">
                 <User className="w-5 h-5" />
               </Link>
+              <button
+                onClick={toggleDark}
+                className="p-2 hover:bg-accent rounded-full transition-colors hidden sm:flex"
+                title={isDark ? "Modo claro" : "Modo escuro"}
+              >
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
               {isAuthenticated ? (
                 <button
                   onClick={() => { logout(); navigate("/"); }}
@@ -247,6 +287,15 @@ export function Layout() {
                   </Link>
                 </li>
               )}
+              <li className="border-t border-border pt-2 mt-2">
+                <button
+                  onClick={() => { toggleDark(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-colors"
+                >
+                  {isDark ? <Sun className="w-5 h-5 text-primary" /> : <Moon className="w-5 h-5 text-primary" />}
+                  {isDark ? "Modo Claro" : "Modo Escuro"}
+                </button>
+              </li>
             </ul>
           </nav>
         )}
@@ -254,56 +303,23 @@ export function Layout() {
 
       {/* Main content */}
       <main className="flex-1">
-        <Outlet />
+        <div key={location.pathname} className="page-enter">
+          <Outlet />
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#1a2e2a] text-white mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Pill className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-lg" style={{ fontWeight: 700 }}>FarmaMap</span>
-              </div>
-              <p className="text-sm text-white/70">
-                Conectando consumidores a farmácias locais em Maputo. Melhorando o acesso a medicamentos através da tecnologia.
-              </p>
-            </div>
-            <div>
-              <h4 className="mb-3 text-white/90">Plataforma</h4>
-              <ul className="space-y-2 text-sm text-white/60">
-                <li><Link to="/pesquisa" className="hover:text-white transition-colors">Medicamentos</Link></li>
-                <li><Link to="/pesquisa" className="hover:text-white transition-colors">Farmácias</Link></li>
-                <li><Link to="/consultas" className="hover:text-white transition-colors">Consultas</Link></li>
-                <li><a href="#" className="hover:text-white transition-colors">Como Funciona</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-3 text-white/90">Suporte</h4>
-              <ul className="space-y-2 text-sm text-white/60">
-                <li><a href="#" className="hover:text-white transition-colors">Central de Ajuda</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Termos de Uso</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Política de Privacidade</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contacto</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-3 text-white/90">Contacto</h4>
-              <ul className="space-y-2 text-sm text-white/60">
-                <li>+258 84 000 0000</li>
-                <li>suporte@farmamap.co.mz</li>
-                <li>Av. 25 de Setembro, Maputo</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-white/10 mt-8 pt-6 text-center text-sm text-white/50">
-            &copy; 2026 FarmaMap. Todos os direitos reservados. Maputo, Moçambique.
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 }

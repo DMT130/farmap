@@ -1,0 +1,67 @@
+{
+  "name": "farmdesk",
+  "version": "1.0.0",
+  "description": "FarmaMap Desktop — Pharmacy Management System",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && node scripts/build-electron.mjs",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5174 && electron .\"",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.farmamap.desk",
+    "productName": "FarmaMap Desk",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"]
+    }
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router": "^7.5.0",
+    "lucide-react": "^0.474.0",
+    "recharts": "^2.15.3",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-dropdown-menu": "^2.1.14",
+    "@radix-ui/react-select": "^2.1.14",
+    "@radix-ui/react-tabs": "^1.1.6",
+    "@radix-ui/react-tooltip": "^1.1.8",
+    "@radix-ui/react-separator": "^1.1.4",
+    "@radix-ui/react-scroll-area": "^1.2.5",
+    "@radix-ui/react-slot": "^1.2.0",
+    "sonner": "^2.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.3",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
+    "tailwindcss": "^4.1.3",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.4",
+    "wait-on": "^8.0.3"
+  }
+}

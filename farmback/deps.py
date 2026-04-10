@@ -12,9 +12,11 @@ from jose import jwt, JWTError
 import crud
 from database import get_db
 
-# JWT settings — must match auth.py
-SECRET_KEY = "farmamap-secret-change-in-production"
-ALGORITHM = "HS256"
+# JWT settings — use environment configuration
+from settings import settings
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -84,6 +86,6 @@ def require_pharmacy_owner(current_user=Depends(get_current_user)):
     if current_user.role not in ("pharmacy_owner", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Pharmacy owner access required",
+            detail="Pharmacy owner or admin access required",
         )
     return current_user

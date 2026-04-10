@@ -19,9 +19,31 @@ export function MedicineDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <Pill className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4 animate-pulse" />
-        <p className="text-muted-foreground">A carregar...</p>
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <div className="rounded-xl border border-border p-6 space-y-4">
+              <div className="h-48 rounded-xl bg-muted animate-pulse" />
+              <div className="h-6 w-3/4 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+              <div className="h-16 w-full bg-muted rounded-xl animate-pulse" />
+            </div>
+          </div>
+          <div className="lg:col-span-2 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+                    <div className="h-3 w-60 bg-muted rounded animate-pulse" />
+                  </div>
+                  <div className="h-8 w-20 bg-muted rounded-full animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -85,11 +107,11 @@ export function MedicineDetailPage() {
             <p className="text-sm text-muted-foreground mb-4">{medicine.description}</p>
 
             {medicine.requiresPrescription && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
-                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                 <div className="text-sm">
-                  <p className="text-amber-800" style={{ fontWeight: 600 }}>Medicamento Sujeito a Receita Médica</p>
-                  <p className="text-amber-700 text-xs mt-1">
+                  <p className="text-amber-800 dark:text-amber-200" style={{ fontWeight: 600 }}>Medicamento Sujeito a Receita Médica</p>
+                  <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
                     Para comprar este medicamento, é necessário apresentar uma prescrição médica válida.
                     Pode fazer upload da receita no seu perfil ou vincular uma receita eletrónica.
                   </p>

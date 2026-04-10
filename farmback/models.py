@@ -218,3 +218,87 @@ class Appointment(Base):
 
     user = relationship("User", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
+
+
+# ---------------------------------------------------------------------------
+# Supplier (desktop POS)
+# ---------------------------------------------------------------------------
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    contact_person = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    stock_batches = relationship("StockBatch", back_populates="supplier", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# Stock / Inventory (desktop POS)
+# ---------------------------------------------------------------------------
+
+class StockBatch(Base):
+    """Tracks individual batches of medicine received by a pharmacy."""
+    __tablename__ = "stock_batches"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    pharmacy_id = Column(String, ForeignKey("pharmacies.id"), nullable=False)
+    medicine_id = Column(String, ForeignKey("medicines.id"), nullable=False)
+    supplier_id = Column(String, ForeignKey("suppliers.id"), nullable=True)
+    batch_number = Column(String, nullable=True)
+    quantity_received = Column(Integer, nullable=False)
+    quantity_remaining = Column(Integer, nullable=False)
+    cost_price = Column(Float, nullable=False)
+    sale_price = Column(Float, nullable=False)
+    expiry_date = Column(String, nullable=True)
+    received_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    pharmacy = relationship("Pharmacy")
+    medicine = relationship("Medicine")
+    supplier = relationship("Supplier", back_populates="stock_batches")
+
+
+# ---------------------------------------------------------------------------
+# POS Sale (desktop POS — walk-in sales)
+# ---------------------------------------------------------------------------
+
+class Sale(Base):
+    """A point-of-sale transaction (in-pharmacy walk-in sale)."""
+    __tablename__ = "sales"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    pharmacy_id = Column(String, ForeignKey("pharmacies.id"), nullable=False)
+    cashier_id = Column(String, ForeignKey("users.id"), nullable=True)
+    customer_name = Column(String, nullable=True)
+    subtotal = Column(Float, nullable=False)
+    discount = Column(Float, default=0.0)
+    total = Column(Float, nullable=False)
+    payment_method = Column(String, default="cash")  # cash | card | mpesa | emola
+    status = Column(String, default="completed")  # completed | voided | refunded
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    pharmacy = relationship("Pharmacy")
+    cashier = relationship("User")
+    items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
+
+
+class SaleItem(Base):
+    __tablename__ = "sale_items"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    sale_id = Column(String, ForeignKey("sales.id"), nullable=False)
+    medicine_id = Column(String, ForeignKey("medicines.id"), nullable=False)
+    batch_id = Column(String, ForeignKey("stock_batches.id"), nullable=True)
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Float, nullable=False)
+    total = Column(Float, nullable=False)
+
+    sale = relationship("Sale", back_populates="items")
+    medicine = relationship("Medicine")
+    batch = relationship("StockBatch")

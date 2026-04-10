@@ -11,6 +11,7 @@ import { Badge } from "../components/ui/badge";
 import { formatMZN } from "../data/mock-data";
 import { usePharmacies, useMedicines, useCategories } from "../services/hooks";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { MedicineCardSkeleton, PharmacyCardSkeleton, CategoryCardSkeleton } from "../components/skeletons";
 
 const iconMap: Record<string, any> = {
   Pill, Shield, Flame, Heart, Droplets, CircleDot, Sparkles, Wind,
@@ -19,9 +20,9 @@ const iconMap: Record<string, any> = {
 export function HomePage() {
   const navigate = useNavigate();
   const [heroSearch, setHeroSearch] = useState("");
-  const { data: pharmacies } = usePharmacies();
-  const { data: medicines } = useMedicines();
-  const { data: categories } = useCategories();
+  const { data: pharmacies, loading: loadingPharmacies } = usePharmacies();
+  const { data: medicines, loading: loadingMedicines } = useMedicines();
+  const { data: categories, loading: loadingCategories } = useCategories();
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +128,9 @@ export function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {categories.map((cat) => {
+          {loadingCategories
+            ? Array.from({ length: 8 }).map((_, i) => <CategoryCardSkeleton key={i} />)
+            : categories.map((cat) => {
             const Icon = iconMap[cat.icon] || Pill;
             return (
               <Link
@@ -158,7 +161,9 @@ export function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {medicines.slice(0, 4).map((med) => {
+          {loadingMedicines
+            ? Array.from({ length: 4 }).map((_, i) => <MedicineCardSkeleton key={i} />)
+            : medicines.slice(0, 4).map((med) => {
             const lowestPrice = Math.min(...med.prices.filter((p) => p.inStock).map((p) => p.price));
             const availableCount = med.prices.filter((p) => p.inStock).length;
             return (
@@ -260,31 +265,147 @@ export function HomePage() {
           {[
             {
               icon: Search,
-              title: "Pesquise",
+              title: "1. Pesquise",
               desc: "Procure pelo nome do medicamento ou princípio ativo. Compare preços entre farmácias.",
+              color: "bg-blue-50 text-blue-600",
             },
             {
               icon: CreditCard,
-              title: "Encomende",
+              title: "2. Encomende",
               desc: "Escolha a farmácia, adicione ao carrinho e pague via M-Pesa, e-Mola ou cartão bancário.",
+              color: "bg-amber-50 text-amber-600",
             },
             {
               icon: Truck,
-              title: "Receba",
+              title: "3. Receba",
               desc: "Receba em casa com rastreamento em tempo real ou levante na farmácia mais próxima.",
+              color: "bg-green-50 text-green-600",
             },
           ].map((step, i) => {
             const Icon = step.icon;
             return (
-              <div key={i} className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Icon className="w-8 h-8 text-primary" />
+              <div key={i} className="text-center group">
+                <div className="relative">
+                  <div className={`w-20 h-20 rounded-2xl ${step.color} flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-9 h-9" />
+                  </div>
+                  {i < 2 && (
+                    <div className="hidden md:block absolute top-10 left-[calc(50%+3rem)] w-[calc(100%-6rem)] border-t-2 border-dashed border-border" />
+                  )}
                 </div>
-                <h3 className="mb-2">{step.title}</h3>
-                <p className="text-muted-foreground text-sm">{step.desc}</p>
+                <h3 className="mb-2" style={{ fontWeight: 600 }}>{step.title}</h3>
+                <p className="text-muted-foreground text-sm max-w-xs mx-auto">{step.desc}</p>
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="bg-secondary/50 py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2>O Que Dizem os Nossos Utilizadores</h2>
+            <p className="text-muted-foreground mt-2">Milhares de moçambicanos confiam na FarmaMap</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Ana Cossa",
+                role: "Cliente desde 2025",
+                text: "A FarmaMap mudou completamente a forma como compro medicamentos. Consigo comparar preços e receber em casa sem sair do sofá!",
+                rating: 5,
+              },
+              {
+                name: "Dr. Pedro Nhambe",
+                role: "Farmacêutico Parceiro",
+                text: "Desde que registei a minha farmácia na plataforma, as vendas aumentaram 40%. O painel de gestão é muito intuitivo.",
+                rating: 5,
+              },
+              {
+                name: "Marta Bila",
+                role: "Mãe e Professora",
+                text: "Com crianças pequenas em casa, a entrega ao domicílio é uma salvação. Medicamentos chegam sempre a tempo.",
+                rating: 5,
+              },
+            ].map((testimonial, i) => (
+              <Card key={i} className="p-6">
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: testimonial.rating }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 italic">"{testimonial.text}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm text-primary" style={{ fontWeight: 600 }}>{testimonial.name[0]}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm" style={{ fontWeight: 600 }}>{testimonial.name}</p>
+                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* App benefits */}
+      <section className="max-w-7xl mx-auto px-4 py-16">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Porquê a FarmaMap?</Badge>
+            <h2 className="text-3xl mb-6" style={{ fontWeight: 700, lineHeight: 1.3 }}>
+              A forma mais inteligente de aceder a medicamentos em Moçambique
+            </h2>
+            <div className="space-y-4">
+              {[
+                { icon: Shield, title: "Seguro e Verificado", desc: "Todas as farmácias são verificadas e licenciadas pela autoridade reguladora." },
+                { icon: Smartphone, title: "Pagamento Fácil", desc: "Pague com M-Pesa, e-Mola, cartão ou seguro de saúde — sem complicações." },
+                { icon: Truck, title: "Entrega Rápida", desc: "Receba os seus medicamentos em 30-60 minutos, ou levante gratuitamente na farmácia." },
+                { icon: CheckCircle2, title: "Melhor Preço Garantido", desc: "Compare preços entre dezenas de farmácias e escolha a melhor opção para si." },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <div key={i} className="flex gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ fontWeight: 600 }}>{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="relative">
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-3xl p-8 text-center">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1576091358783-a212ec293ff3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaGFybWFjaXN0JTIwaGVscGluZyUyMGN1c3RvbWVyfGVufDF8fHx8MTc3MjY0OTgyMnww&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="FarmaMap mobile"
+                className="rounded-2xl shadow-xl w-full h-72 object-cover"
+              />
+              <div className="mt-6 flex items-center justify-center gap-4">
+                <div className="text-center">
+                  <p className="text-2xl text-primary" style={{ fontWeight: 700 }}>4.8★</p>
+                  <p className="text-xs text-muted-foreground">Avaliação Média</p>
+                </div>
+                <div className="w-px h-10 bg-border" />
+                <div className="text-center">
+                  <p className="text-2xl text-primary" style={{ fontWeight: 700 }}>25K+</p>
+                  <p className="text-xs text-muted-foreground">Utilizadores Activos</p>
+                </div>
+                <div className="w-px h-10 bg-border" />
+                <div className="text-center">
+                  <p className="text-2xl text-primary" style={{ fontWeight: 700 }}>50+</p>
+                  <p className="text-xs text-muted-foreground">Farmácias</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -297,11 +418,18 @@ export function HomePage() {
           <p className="text-white/80 mb-8 max-w-2xl mx-auto">
             Aumente as suas vendas, alcance novos clientes e modernize a gestão da sua farmácia com o nosso painel de controlo.
           </p>
-          <Link to="/registar-farmacia">
-            <Button size="lg" variant="secondary" className="rounded-full px-8">
-              Registar Farmácia <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/farmacia/registar">
+              <Button size="lg" variant="secondary" className="rounded-full px-8">
+                Registar Farmácia <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <Link to="/registar">
+              <Button size="lg" variant="outline" className="rounded-full px-8 text-white border-white/30 hover:bg-white/10">
+                Criar Conta Grátis
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </div>

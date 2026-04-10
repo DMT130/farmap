@@ -181,3 +181,24 @@ export function useDoctors() {
     []
   );
 }
+
+export function useOrders() {
+  return useApi(
+    () => ordersApi.list(),
+    [] as Order[]
+  );
+}
+
+export function useUserOrders(userId: string | undefined) {
+  return useApi(
+    () => (userId ? ordersApi.userOrders(userId) : Promise.resolve([])),
+    [] as Order[]
+  );
+}
+
+export function useUserAppointments(userId: string | undefined) {
+  return useApi(
+    () => (userId ? appointmentsApi.userAppointments(userId) : Promise.resolve([])),
+    [] as import("./api").Appointment[]
+  );
+}

@@ -6,7 +6,7 @@ Session as its first argument so callers (routers) stay thin.
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 import models, schemas
 import uuid
 import bcrypt as _bcrypt
@@ -320,6 +320,10 @@ def update_order_status(db: Session, order_id: str, status: str):
 # ---------------------------------------------------------------------------
 
 def create_payment(db: Session, data: schemas.PaymentCreate):
+    existing = get_payment_by_order(db, data.order_id)
+    if existing:
+        return existing
+
     payment = models.Payment(
         order_id=data.order_id,
         provider=data.provider,
@@ -414,6 +418,358 @@ def update_doctor(db: Session, doctor_id: str, data: schemas.DoctorUpdate):
     db.commit()
     db.refresh(doctor)
     return doctor
+
+
+# ---------------------------------------------------------------------------
+# Suppliers (desktop POS)
+# ---------------------------------------------------------------------------
+
+def get_suppliers(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Supplier).offset(skip).limit(limit).all()
+
+
+def get_supplier(db: Session, supplier_id: str):
+    return db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+
+
+def create_supplier(db: Session, data: schemas.SupplierCreate):
+    supplier = models.Supplier(**data.model_dump())
+    db.add(supplier)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+def update_supplier(db: Session, supplier_id: str, data: schemas.SupplierUpdate):
+    supplier = get_supplier(db, supplier_id)
+    if not supplier:
+        return None
+    for key, val in data.model_dump(exclude_unset=True).items():
+        setattr(supplier, key, val)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+def delete_supplier(db: Session, supplier_id: str) -> bool:
+    supplier = get_supplier(db, supplier_id)
+    if not supplier:
+        return False
+    db.delete(supplier)
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Stock Batches / Inventory (desktop POS)
+# ---------------------------------------------------------------------------
+
+def create_stock_batch(db: Session, data: schemas.StockBatchCreate):
+    batch = models.StockBatch(
+        pharmacy_id=data.pharmacy_id,
+        medicine_id=data.medicine_id,
+        supplier_id=data.supplier_id,
+        batch_number=data.batch_number,
+        quantity_received=data.quantity_received,
+        quantity_remaining=data.quantity_received,  # starts full
+        cost_price=data.cost_price,
+        sale_price=data.sale_price,
+        expiry_date=data.expiry_date,
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+    # Also update MedicinePrice so web marketplace shows current price/stock
+    _sync_medicine_price(db, data.pharmacy_id, data.medicine_id, data.sale_price)
+    return batch
+
+
+def _sync_medicine_price(db: Session, pharmacy_id: str, medicine_id: str, sale_price: float):
+    """Keep MedicinePrice table in sync with latest stock for web marketplace."""
+    mp = (
+        db.query(models.MedicinePrice)
+        .filter_by(pharmacy_id=pharmacy_id, medicine_id=medicine_id)
+        .first()
+    )
+    total_remaining = (
+        db.query(models.StockBatch)
+        .filter_by(pharmacy_id=pharmacy_id, medicine_id=medicine_id)
+        .with_entities(func.sum(models.StockBatch.quantity_remaining))
+        .scalar() or 0
+    )
+    if mp:
+        mp.price = sale_price
+        mp.in_stock = total_remaining > 0
+    else:
+        mp = models.MedicinePrice(
+            medicine_id=medicine_id,
+            pharmacy_id=pharmacy_id,
+            price=sale_price,
+            in_stock=total_remaining > 0,
+        )
+        db.add(mp)
+    db.commit()
+
+
+def get_stock_batches(db: Session, pharmacy_id: str, medicine_id: str | None = None):
+    q = db.query(models.StockBatch).filter(models.StockBatch.pharmacy_id == pharmacy_id)
+    if medicine_id:
+        q = q.filter(models.StockBatch.medicine_id == medicine_id)
+    return q.order_by(models.StockBatch.received_at.desc()).all()
+
+
+def get_stock_batch(db: Session, batch_id: str):
+    return db.query(models.StockBatch).filter(models.StockBatch.id == batch_id).first()
+
+
+def update_stock_batch(db: Session, batch_id: str, data: schemas.StockBatchUpdate):
+    batch = get_stock_batch(db, batch_id)
+    if not batch:
+        return None
+    for key, val in data.model_dump(exclude_unset=True).items():
+        setattr(batch, key, val)
+    db.commit()
+    db.refresh(batch)
+    _sync_medicine_price(db, batch.pharmacy_id, batch.medicine_id, batch.sale_price)
+    return batch
+
+
+def get_inventory_summary(db: Session, pharmacy_id: str):
+    """Aggregate stock across batches per medicine for a pharmacy."""
+    from sqlalchemy import func as sqlfunc
+
+    rows = (
+        db.query(
+            models.StockBatch.medicine_id,
+            sqlfunc.sum(models.StockBatch.quantity_remaining).label("total_stock"),
+            sqlfunc.count(models.StockBatch.id).label("batches"),
+            sqlfunc.avg(models.StockBatch.cost_price).label("avg_cost"),
+            sqlfunc.max(models.StockBatch.sale_price).label("sale_price"),
+            sqlfunc.min(models.StockBatch.expiry_date).label("nearest_expiry"),
+        )
+        .filter(models.StockBatch.pharmacy_id == pharmacy_id)
+        .group_by(models.StockBatch.medicine_id)
+        .all()
+    )
+
+    results = []
+    for row in rows:
+        med = db.query(models.Medicine).filter(models.Medicine.id == row.medicine_id).first()
+        results.append(schemas.InventorySummary(
+            medicine_id=row.medicine_id,
+            medicine_name=med.name if med else "Unknown",
+            category=med.category if med else None,
+            total_stock=int(row.total_stock or 0),
+            batches=int(row.batches or 0),
+            avg_cost=round(float(row.avg_cost or 0), 2),
+            sale_price=float(row.sale_price or 0),
+            nearest_expiry=row.nearest_expiry,
+        ))
+    return results
+
+
+def get_inventory_alerts(db: Session, pharmacy_id: str, low_stock_threshold: int = 10):
+    """Return medicines that are low on stock or expiring soon."""
+    from datetime import datetime, timedelta
+    alerts = []
+    thirty_days = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+
+    summary = get_inventory_summary(db, pharmacy_id)
+    for item in summary:
+        if item.total_stock <= low_stock_threshold:
+            alerts.append(schemas.InventoryAlert(
+                medicine_id=item.medicine_id,
+                medicine_name=item.medicine_name,
+                quantity_remaining=item.total_stock,
+                alert_type="low_stock",
+            ))
+        if item.nearest_expiry and item.nearest_expiry <= thirty_days:
+            alert_type = "expired" if item.nearest_expiry < datetime.now().strftime("%Y-%m-%d") else "expiring_soon"
+            alerts.append(schemas.InventoryAlert(
+                medicine_id=item.medicine_id,
+                medicine_name=item.medicine_name,
+                quantity_remaining=item.total_stock,
+                alert_type=alert_type,
+            ))
+    return alerts
+
+
+# ---------------------------------------------------------------------------
+# POS Sales (desktop POS)
+# ---------------------------------------------------------------------------
+
+def create_sale(db: Session, data: schemas.SaleCreate, cashier_id: str | None = None):
+    subtotal = sum(item.unit_price * item.quantity for item in data.items)
+    total = subtotal - data.discount
+
+    sale = models.Sale(
+        pharmacy_id=data.pharmacy_id,
+        cashier_id=cashier_id,
+        customer_name=data.customer_name,
+        subtotal=round(subtotal, 2),
+        discount=data.discount,
+        total=round(total, 2),
+        payment_method=data.payment_method,
+        notes=data.notes,
+        status="completed",
+    )
+    db.add(sale)
+    db.commit()
+    db.refresh(sale)
+
+    for item in data.items:
+        sale_item = models.SaleItem(
+            sale_id=sale.id,
+            medicine_id=item.medicine_id,
+            batch_id=item.batch_id,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            total=round(item.unit_price * item.quantity, 2),
+        )
+        db.add(sale_item)
+
+        # Deduct from stock batch (FIFO if no batch specified)
+        _deduct_stock(db, data.pharmacy_id, item.medicine_id, item.quantity, item.batch_id)
+
+    db.commit()
+    db.refresh(sale)
+    return sale
+
+
+def _deduct_stock(db: Session, pharmacy_id: str, medicine_id: str, qty: int, batch_id: str | None = None):
+    """Deduct sold quantity from stock batches (FIFO ordering)."""
+    if batch_id:
+        batch = get_stock_batch(db, batch_id)
+        if batch and batch.quantity_remaining >= qty:
+            batch.quantity_remaining -= qty
+            db.flush()
+            _sync_medicine_price(db, pharmacy_id, medicine_id, batch.sale_price)
+        return
+
+    batches = (
+        db.query(models.StockBatch)
+        .filter_by(pharmacy_id=pharmacy_id, medicine_id=medicine_id)
+        .filter(models.StockBatch.quantity_remaining > 0)
+        .order_by(models.StockBatch.expiry_date.asc(), models.StockBatch.received_at.asc())
+        .all()
+    )
+    remaining = qty
+    last_price = 0.0
+    for batch in batches:
+        if remaining <= 0:
+            break
+        take = min(remaining, batch.quantity_remaining)
+        batch.quantity_remaining -= take
+        remaining -= take
+        last_price = batch.sale_price
+    db.flush()
+    if last_price:
+        _sync_medicine_price(db, pharmacy_id, medicine_id, last_price)
+
+
+def get_sales(db: Session, pharmacy_id: str, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Sale)
+        .filter(models.Sale.pharmacy_id == pharmacy_id)
+        .order_by(models.Sale.created_at.desc())
+        .offset(skip).limit(limit).all()
+    )
+
+
+def get_sale(db: Session, sale_id: str):
+    return db.query(models.Sale).filter(models.Sale.id == sale_id).first()
+
+
+def void_sale(db: Session, sale_id: str):
+    sale = get_sale(db, sale_id)
+    if not sale or sale.status != "completed":
+        return None
+    sale.status = "voided"
+    # Restore stock
+    for item in sale.items:
+        if item.batch_id:
+            batch = get_stock_batch(db, item.batch_id)
+            if batch:
+                batch.quantity_remaining += item.quantity
+        else:
+            _restore_stock_fifo(db, sale.pharmacy_id, item.medicine_id, item.quantity)
+    db.commit()
+    db.refresh(sale)
+    return sale
+
+
+def _restore_stock_fifo(db: Session, pharmacy_id: str, medicine_id: str, qty: int):
+    """Restore stock to most recent batches."""
+    batches = (
+        db.query(models.StockBatch)
+        .filter_by(pharmacy_id=pharmacy_id, medicine_id=medicine_id)
+        .order_by(models.StockBatch.received_at.desc())
+        .all()
+    )
+    remaining = qty
+    for batch in batches:
+        if remaining <= 0:
+            break
+        can_restore = batch.quantity_received - batch.quantity_remaining
+        restore = min(remaining, can_restore)
+        batch.quantity_remaining += restore
+        remaining -= restore
+    db.flush()
+
+
+def get_daily_sales_report(db: Session, pharmacy_id: str, date_str: str):
+    """Generate sales report for a specific date (YYYY-MM-DD)."""
+    from sqlalchemy import func as sqlfunc, cast, Date
+
+    sales = (
+        db.query(models.Sale)
+        .filter(
+            models.Sale.pharmacy_id == pharmacy_id,
+            models.Sale.status == "completed",
+            sqlfunc.date(models.Sale.created_at) == date_str,
+        )
+        .all()
+    )
+
+    total_sales = sum(s.total for s in sales)
+    items_sold = sum(sum(i.quantity for i in s.items) for s in sales)
+
+    # Top medicines by quantity
+    med_counts: dict[str, dict] = {}
+    for s in sales:
+        for item in s.items:
+            mid = item.medicine_id
+            if mid not in med_counts:
+                med = db.query(models.Medicine).filter(models.Medicine.id == mid).first()
+                med_counts[mid] = {"name": med.name if med else mid, "quantity": 0, "revenue": 0.0}
+            med_counts[mid]["quantity"] += item.quantity
+            med_counts[mid]["revenue"] += item.total
+
+    top = sorted(med_counts.values(), key=lambda x: x["revenue"], reverse=True)[:5]
+
+    return schemas.DailySalesReport(
+        date=date_str,
+        total_sales=round(total_sales, 2),
+        transaction_count=len(sales),
+        items_sold=items_sold,
+        top_medicines=top,
+    )
+
+
+def get_sales_range(db: Session, pharmacy_id: str, start_date: str, end_date: str):
+    """Get sales between two dates."""
+    from sqlalchemy import func as sqlfunc
+    return (
+        db.query(models.Sale)
+        .filter(
+            models.Sale.pharmacy_id == pharmacy_id,
+            models.Sale.status == "completed",
+            sqlfunc.date(models.Sale.created_at) >= start_date,
+            sqlfunc.date(models.Sale.created_at) <= end_date,
+        )
+        .order_by(models.Sale.created_at.desc())
+        .all()
+    )
 
 
 def delete_doctor(db: Session, doctor_id: str) -> bool:

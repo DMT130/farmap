@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   CalendarCheck, Clock, MapPin, User, Star, ChevronRight, CheckCircle2,
   Stethoscope, Building2, X,
@@ -90,7 +90,19 @@ export function AppointmentsPage() {
   const [doctors, setDoctors] = useState<any[]>(fallbackDoctors);
   const [appointments, setAppointments] = useState<any[]>(fallbackAppointments);
   const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const userId = user?.id || "user1";
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/entrar", { replace: true });
+      return;
+    }
+    if (user?.role !== "customer") {
+      const redirect = user?.role === "pharmacy_owner" ? "/painel" : user?.role === "admin" ? "/admin" : "/";
+      navigate(redirect, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     appointmentsApi.doctors()

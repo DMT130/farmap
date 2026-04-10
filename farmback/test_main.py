@@ -614,6 +614,22 @@ class TestPayments:
         }, headers=self.customer_headers)
         assert r.status_code == 404
 
+    def test_payment_invalid_provider(self):
+        r = client.post("/payments/process", json={
+            "order_id": self.order_id,
+            "provider": "bitcoin",
+            "amount": 50.0,
+        }, headers=self.customer_headers)
+        assert r.status_code == 400
+
+    def test_payment_invalid_amount(self):
+        r = client.post("/payments/process", json={
+            "order_id": self.order_id,
+            "provider": "mpesa",
+            "amount": 0,
+        }, headers=self.customer_headers)
+        assert r.status_code == 400
+
     def test_get_payment_for_order(self):
         client.post("/payments/process", json={
             "order_id": self.order_id,

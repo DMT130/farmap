@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShoppingCart, Minus, Plus, Trash2, ArrowLeft, MapPin, CreditCard,
   Smartphone, Truck, Store, CheckCircle2, Shield,
@@ -22,7 +22,19 @@ export function CartPage() {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [deliveryMethod, setDeliveryMethod] = useState("delivery");
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/entrar", { replace: true });
+      return;
+    }
+    if (user?.role !== "customer") {
+      const redirect = user?.role === "pharmacy_owner" ? "/painel" : user?.role === "admin" ? "/admin" : "/";
+      navigate(redirect, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
   const [paymentMethod, setPaymentMethod] = useState("mpesa");
+  const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "");
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -36,12 +48,16 @@ export function CartPage() {
       navigate("/entrar");
       return;
     }
+    if (deliveryMethod === "delivery" && !deliveryAddress.trim()) {
+      toast.error("Indique o endereço de entrega.");
+      return;
+    }
     setSubmitting(true);
     try {
       // Create order via API
       const order = await ordersApi.create({
         user_id: user!.id,
-        delivery_address: deliveryMethod === "delivery" ? (user!.address || "Maputo") : "Levantamento na farmácia",
+        delivery_address: deliveryMethod === "delivery" ? deliveryAddress.trim() : "Levantamento na farmácia",
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         total_amount: grandTotal,
@@ -73,8 +89,8 @@ export function CartPage() {
   if (orderPlaced) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 className="w-10 h-10 text-green-600" />
+        <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
         </div>
         <h1 className="mb-2">Pedido Realizado!</h1>
         <p className="text-muted-foreground mb-2">
@@ -209,6 +225,21 @@ export function CartPage() {
                 </Label>
               </div>
             </RadioGroup>
+            {deliveryMethod === "delivery" && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <Label htmlFor="address" className="text-sm flex items-center gap-1 mb-2">
+                  <MapPin className="w-3.5 h-3.5" /> Endereço de Entrega
+                </Label>
+                <input
+                  id="address"
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Bairro, rua, número da casa..."
+                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                />
+              </div>
+            )}
           </Card>
 
           {/* Payment method */}

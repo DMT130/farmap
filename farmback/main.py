@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Base
 from routers import auth, pharmacies, medicines, categories, orders, payments, appointments
+from routers import pos, inventory, suppliers
 
 # Create all tables (fallback; prefer Alembic migrations)
 Base.metadata.create_all(bind=engine)
@@ -27,11 +28,13 @@ app = FastAPI(
 )
 
 # CORS — allow the Vite dev server and any frontend origin
+from settings import settings
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -54,3 +57,6 @@ app.include_router(categories.router)
 app.include_router(orders.router)
 app.include_router(payments.router)
 app.include_router(appointments.router)
+app.include_router(pos.router)
+app.include_router(inventory.router)
+app.include_router(suppliers.router)

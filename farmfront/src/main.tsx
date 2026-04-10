@@ -3,5 +3,8 @@
   import App from "./app/App.tsx";
   import "./styles/index.css";
 
-  createRoot(document.getElementById("root")!).render(<App />);
+const root = document.getElementById("root")!;
+createRoot(root).render(<App />);
+// Reveal UI after React + CSS are ready
+requestAnimationFrame(() => root.classList.add("ready"));
   

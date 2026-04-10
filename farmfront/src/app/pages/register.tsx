@@ -55,16 +55,57 @@ export function RegisterPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <Pill className="w-7 h-7 text-primary-foreground" />
+      <div className="w-full max-w-4xl grid md:grid-cols-2 overflow-hidden rounded-2xl shadow-xl border border-border">
+        {/* Left panel - branding */}
+        <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-primary via-primary to-[#065f42] p-10 text-white">
+          <div>
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                <Pill className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-2xl" style={{ fontWeight: 700 }}>FarmaMap</span>
+            </div>
+            <h2 className="text-3xl text-white mb-4" style={{ fontWeight: 700, lineHeight: 1.3 }}>
+              Junte-se à comunidade FarmaMap
+            </h2>
+            <p className="text-white/70 leading-relaxed mb-6">
+              Crie a sua conta gratuita e comece a comparar preços, encomendar medicamentos e agendar consultas médicas.
+            </p>
+            <ul className="space-y-3 text-white/80 text-sm">
+              <li className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xs">✓</span>
+                </div>
+                Compare preços entre 50+ farmácias
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xs">✓</span>
+                </div>
+                Entrega ao domicílio em 30-60 min
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xs">✓</span>
+                </div>
+                Pagamento via M-Pesa, e-Mola ou cartão
+              </li>
+            </ul>
           </div>
-          <h1 className="text-2xl" style={{ fontWeight: 700 }}>Criar Conta</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Junte-se ao FarmaMap e aceda a medicamentos facilmente
-          </p>
+          <p className="text-sm text-white/50">Registo gratuito. Sem compromisso.</p>
         </div>
+
+        {/* Right panel - form */}
+        <Card className="p-8 border-0 shadow-none rounded-none md:rounded-r-2xl">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4 md:hidden">
+              <Pill className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl" style={{ fontWeight: 700 }}>Criar Conta</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Preencha os dados para começar
+            </p>
+          </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -166,13 +207,14 @@ export function RegisterPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          <span className="text-muted-foreground">Já tem conta? </span>
-          <Link to="/entrar" className="text-primary hover:underline font-medium">
-            Iniciar sessão
-          </Link>
-        </div>
-      </Card>
+          <div className="mt-6 text-center text-sm">
+            <span className="text-muted-foreground">Já tem conta? </span>
+            <Link to="/entrar" className="text-primary hover:underline font-medium">
+              Iniciar sessão
+            </Link>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

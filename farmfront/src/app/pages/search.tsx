@@ -212,6 +212,74 @@ export function SearchPage() {
           </Button>
         </div>
 
+        {/* Mobile filter overlay */}
+        {showFilters && (
+          <div className="lg:hidden fixed inset-0 z-50 flex">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
+            <div className="relative ml-auto w-80 max-w-[85vw] h-full bg-card shadow-xl overflow-y-auto animate-in slide-in-from-right">
+              <div className="sticky top-0 bg-card z-10 flex items-center justify-between p-4 border-b border-border">
+                <h3 className="flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Filtros</h3>
+                <button onClick={() => setShowFilters(false)} className="p-1 hover:bg-accent rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-5">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Categoria</label>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedCategory("")}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        !selectedCategory ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          selectedCategory === cat.name
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-border pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Checkbox id="instock-m" checked={inStockOnly} onCheckedChange={(v) => setInStockOnly(!!v)} />
+                    <label htmlFor="instock-m" className="text-sm cursor-pointer">Em stock apenas</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="norx-m" checked={noPrescriptionOnly} onCheckedChange={(v) => setNoPrescriptionOnly(!!v)} />
+                    <label htmlFor="norx-m" className="text-sm cursor-pointer">Sem receita</label>
+                  </div>
+                </div>
+                <div className="border-t border-border pt-4">
+                  <label className="text-sm text-muted-foreground mb-2 block">Ordenar por</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-sm"
+                  >
+                    <option value="price">Menor Preço</option>
+                    <option value="name">Nome A-Z</option>
+                    <option value="availability">Disponibilidade</option>
+                  </select>
+                </div>
+                <Button className="w-full rounded-full" onClick={() => setShowFilters(false)}>
+                  Aplicar Filtros
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Results */}
         <div className="flex-1">
           {activeTab === "medicamentos" ? (

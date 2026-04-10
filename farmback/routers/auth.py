@@ -40,6 +40,46 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/register-pharmacy", response_model=schemas.TokenResponse, status_code=201)
+def register_pharmacy(data: schemas.PharmacyRegister, db: Session = Depends(get_db)):
+    """Register a new pharmacy with its own independent account (email + password)."""
+    existing = crud.get_user_by_email(db, data.email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+    # Create the pharmacy first
+    pharmacy_data = schemas.PharmacyCreate(
+        name=data.pharmacy_name,
+        address=data.address,
+        district=data.district,
+        phone=data.phone,
+        open_hours=data.open_hours,
+        delivery_fee=data.delivery_fee,
+        delivery_time=data.delivery_time,
+        is_open=data.is_open,
+    )
+    pharmacy = crud.create_pharmacy(db, pharmacy_data)
+
+    # Create the user account linked to the pharmacy
+    user_data = schemas.UserCreate(
+        email=data.email,
+        password=data.password,
+        full_name=data.owner_name,
+        phone=data.owner_phone,
+        role="pharmacy_owner",
+        pharmacy_id=pharmacy.id,
+    )
+    db_user = crud.create_user(db, user_data)
+
+    token = create_access_token({"sub": db_user.id, "email": db_user.email, "role": db_user.role})
+    return schemas.TokenResponse(
+        access_token=token,
+        user=schemas.UserResponse.model_validate(db_user),
+    )
+
+
 @router.post("/login", response_model=schemas.TokenResponse)
 def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     """Authenticate a user and return a JWT token."""
